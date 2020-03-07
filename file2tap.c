@@ -10,14 +10,14 @@
 // 19 0 db 0 db 3 "name" dw size dw mempos dw 0 xor-checsum
 void write_header(FILE * fout, int len, char * s, int address)
 {
-   char h[21] = { 19, 0, // block size  
-                  0,     // header
-                  3,     // bytes/code
-                  ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',
-                  len % 256,
-                  len / 256,
-                  address % 256,
-                  address / 256,
+   char h[21] = { 19, 0, // block size - 0  
+                  0,     // header     - 2
+                  3,     // bytes/code - 3
+                  ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ', // - 4
+                  len % 256,  // - 14
+                  len / 256,  // - 15
+                  address % 256, // 16
+                  address / 256, // 17
                   0,
                   0,
                   0  // checksum
@@ -35,9 +35,12 @@ void write_header(FILE * fout, int len, char * s, int address)
       h[4+i] = *p; 
       p++;
       i++;
-      if (i > 10)
+      if (i ==  10)
          break;
    }
+
+   h[14] = len % 256; h[15] = len / 256;
+   h[16] = address % 256; h[17] = address / 256;   
 
    // calculate header block checksum
    for ( i = 2 ; i < 20 ; i++ )
@@ -109,9 +112,9 @@ int main (int argc, char **argv)
      fin  = fopen(argv[1], "r");
      fout = fopen(argv[2], "w");
 
-     if ( strcasecmp(getExt(argv[1]),"scr"))
+     if ( ! strcasecmp(getExt(argv[1]),".scr"))
         address = 0x4000;
-     if ( strcasecmp(getExt(argv[1]),"rom"))
+     if ( ! strcasecmp(getExt(argv[1]),".rom"))
         address = 0;
 
      if ( argc > 3 )
