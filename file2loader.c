@@ -24,6 +24,7 @@ void usage(char * s)
    printf(" dest.tap\tTAP file with the BASIC loader w/ machine code embebed\n");
    printf(" -n NAME\tname of the TAP BASIC section seen by LOAD \"\"\n");
    printf(" -x addr\tdecimal address of code recolocation/execution\n");
+   printf(" -t addr\tdecimal address of code execution\n");
    printf(" -s SP\t\tSP to set code before transfer in decimal\n");
    printf(" -p n\t\t128K block page to page in $C000\n");
    printf("\t\t\tn page block 0-7\n");
@@ -37,9 +38,10 @@ void usage(char * s)
    exit(1);
 }
 
-int doing_paging_128=0;
-int doing_paging_special=0;
+int doing_paging_128=0;		// code to be added for 128K banks?
+int doing_paging_special=0;	// code to be added for 128K Amstrag paging mode(s)?
 
+// header TAP block
 char header_block[] =
 {
    0x13,0x00, // [0] block len --> TAP
@@ -54,6 +56,7 @@ char header_block[] =
    0x0d       // [20] checksum
 };
 
+// BASIC TAP block
 char data_basic_block_vars[] =
 {
    0x00,0x00, // [0] total len (including flag+checksum) --> TAP - has to be changed
@@ -75,17 +78,16 @@ char data_basic_block_vars[] =
    '"','3','"',')',0x0d,            // [38] 
    0x41, 0xFF, 0xFF                 // [43] A + 16 bit value of LEN of relocate program + M/C
 
-//+ LEN (2 bytes - len of assembly routine) assembly routine
-//+ checksum
+   //+ LEN (2 bytes - len of assembly routine) assembly routine
+   //+ checksum
 
 };
 
 // 128K default page banks : ROM, 5, 2, 0 ($C000 last one)
-
 char paging128[] =
 {
-// Paging variable from 128K model onwards
-// $7ffd - Bits 0-2: RAM page (0-7) to map into memory at 0xc000.
+   // Paging variable from 128K model onwards
+   // $7ffd - Bits 0-2: RAM page (0-7) to map into memory at 0xc000.
 
    // RAM page/bank to load at $C000
 
@@ -100,6 +102,7 @@ char paging128[] =
    0xD9              //  EXX                    ; restore BC
 };
 
+// move/relocate MC blob to another address
 char recolocate_loader[] =
 {
    0x60,             // [0]  LD   H,B
@@ -134,6 +137,8 @@ char special_paging[] =
                      //  4->5->6->3
 };
 
+// code to be added for jumping at the end of MC routine
+// before binary blob, if not executing it on-place
 char jump_to_asm[] =
 {
    0x21, 0x00, 0x00, // [0] LD  HL,
@@ -147,51 +152,72 @@ char jump_to_asm[] =
 
 int main(int argc, char ** argv)
 {
-   int RAMaddress = -1;
+   int RAMaddress = -1;     // RAM relocate address
+   int Execute = -1;        // RAM execution address
    int size2block = sizeof(data_basic_block_vars) - 3;
    int sizeMachineCode = 0;
    int fullMachineCode = 0;
-   int blockname       = 0;
-   char * s;
-   FILE * in;
-   FILE * out;
+   int blockname       = 0; // if not default TAP block name
+   FILE * in;		    // machine code/bin snippet
+   FILE * out;		    // destination, new TAP file
+   // temporary integer calculations
    int i;
    int c;
    int n;
-   unsigned char checksum = 0;
-   int aflag = 0;
-   int bflag = 0;
-   // char *cvalue = NULL;
-   int index;
-   int SP = -1;
+
+   unsigned char checksum = 0; // block checksums
+   int aflag = 0;              // special Amstrad paging modes after +2A
+
+   int SP = -1;                // value of Z80 stack
 
    opterr = 0;
 
-  while ((c = getopt (argc, argv, "vhn:x:s:p:a:")) != -1)
+  // handling of command line arguments
+  while ((c = getopt (argc, argv, "vhn:x:t:s:p:a:V:")) != -1)
     switch (c)
       {
+
+      // regular 128K block paging
       case 'p':
         doing_paging_128 = 1;
         n=atoi(optarg);
         if ( (n < 0) || (n > 7) )
+        {
+           printf("Invalid 128K page\n");
            usage(argv[0]);
+        }
         paging128[8] = n;
         break;
+
+      // special Amstrad paging modes
       case 'a':
         doing_paging_special = 1;
+        n=atoi(optarg);
         if ( (n < 0) || (n > 3) )
            usage(argv[0]);
         if ( (n == 0) || (n == 3) )
            printf("warning: special mode %d pages standard BASIC area out of way\n", n);
         special_paging[1] = (n << 1) | 1;
         break;
+
+      // change TAP block name
       case 'n':
         blockname = 0;
         strncpy(header_block+4, optarg, (strlen(optarg)>10)?10:strlen(optarg));
         break;
+
+      // address to jump to
+      // if not specified, it will be the same as relocation address
       case 'x':
         RAMaddress = atoi(optarg);
         break;
+
+      // address to relocate MC to
+      case 't':
+        Execute = atoi(optarg);
+        break;
+
+      // SP value
       case 's':
        {
        SP = atoi(optarg);
@@ -201,20 +227,40 @@ int main(int argc, char ** argv)
        recolocate_loader[14] = SP / 256;
        }
         break;
+
+      // change default A$ value
       case 'V':
+       { 
+            char c = *optarg; 
+
+	    if (!isalpha(c))
+	    {
+               printf("error: var value in option V must be between A-Za-z\n");
+               exit(1);
+            }
+
             strncpy(data_basic_block_vars, optarg, 1);
+       }
         break;
+
+      // show version
       case 'v':
         printf("file2loader %s\n", VERSION);
         exit(0);
         break;
+
+      // display help
       case 'h':
       default:
+        printf("Invalid option\n");
         usage(argv[0]);
       }
 
+      // if not minimum arguments present, display help
       if ( (argc - optind) != 2 )
+      {
          usage(argv[0]);
+      }
 
       // BASIC block name loader by default
       if (!blockname)
@@ -270,8 +316,8 @@ int main(int argc, char ** argv)
 
    // RAM to jump to
    // block will be only written to disk if option given
-   recolocate_loader[7] = jump_to_asm[1] = RAMaddress % 256;
-   recolocate_loader[8] = jump_to_asm[2] = RAMaddress / 256;
+   recolocate_loader[7] = jump_to_asm[1] = (Execute==-1)?RAMaddress:Execute % 256;
+   recolocate_loader[8] = jump_to_asm[2] = (Execute==-1)?RAMaddress:Execute / 256;
    
    // size to recolocate
    recolocate_loader[10] = sizeMachineCode % 256;
@@ -300,25 +346,33 @@ int main(int argc, char ** argv)
    // if relocating C/M, write the relocation code
    if ( RAMaddress != -1 )
    {
+      // BASIC block checksum recalculation
       if(doing_paging_128)
       {
          for( i=0 ; i < sizeof(paging128) ; i++)
             checksum ^=  paging128[i];
          fwrite(paging128, sizeof(paging128), 1, out);
       }
-
       for( i=0 ; i < sizeof(recolocate_loader) ; i++)
          checksum ^= recolocate_loader[i];
+	
+      // add MC for code relocation/LDIR
       fwrite(recolocate_loader, sizeof(recolocate_loader), 1, out);
 
       if(doing_paging_special)
       {
+         // BASIC block checksum recalculation
          for( i=0 ; i < sizeof(special_paging) ; i++)
             checksum ^=  special_paging[i];
+
+	 // add MC for hangling Amstrad special paging modes
          fwrite(special_paging, sizeof(special_paging), 1, out);
       }
+
+      // BASIC block checksum recalculation
       for( i=0 ; i < sizeof(jump_to_asm) ; i++)
          checksum ^= jump_to_asm[i];
+      // add code for JP at the end of CM, before adding binary blob
       fwrite(jump_to_asm, sizeof(jump_to_asm), 1, out);
    }
 
