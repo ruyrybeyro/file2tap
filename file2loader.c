@@ -210,6 +210,8 @@ int main(int argc, char ** argv)
       // if not specified, it will be the same as relocation address
       case 'x':
         RAMaddress = atoi(optarg);
+        if ( Execute == -1 )
+	   Execute    = RAMaddress;
         break;
 
       // address to relocate MC to
