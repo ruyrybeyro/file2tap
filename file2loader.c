@@ -15,11 +15,11 @@
 #include <unistd.h>
 #include <sys/types.h>
 
-#define VERSION "2.00"
+#define VERSION "2.01"
 
 void usage(char * s)
 {
-   printf(" Usage:\n%s z80.bin dest.tap [-n TAPE_BLOCK_NAME] [-x address_of_routine] [-s SP] [-p n] [-a n][-V A]\n\n", s);
+   printf(" Usage:\n%s [-n TAPE_BLOCK_NAME] [-x address_of_routine] [-s SP] [-p n] [-a n][-V A] z80.bin dest.tap\n\n", s);
    printf(" z80.bin\tblock of machine code file\n");
    printf(" dest.tap\tTAP file with the BASIC loader w/ machine code embebed\n");
    printf(" -n NAME\tname of the TAP BASIC section seen by LOAD \"\"\n");
