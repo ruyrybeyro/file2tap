@@ -20,8 +20,6 @@
 void usage(char * s)
 {
    printf(" Usage:\n%s [-n TAPE_BLOCK_NAME] [-x address_of_routine] [-s SP] [-p n] [-a n][-V A] z80.bin dest.tap\n\n", s);
-   printf(" z80.bin\tblock of machine code file\n");
-   printf(" dest.tap\tTAP file with the BASIC loader w/ machine code embebed\n");
    printf(" -n NAME\tname of the TAP BASIC section seen by LOAD \"\"\n");
    printf(" -x addr\tdecimal address of code recolocation/execution\n");
    printf(" -t addr\tdecimal address of code execution\n");
@@ -33,7 +31,9 @@ void usage(char * s)
    printf(" -V var\t\tvar change BASIC variable in use for storing M/C\n");
    printf("\t\t\tvar A-Z, by default is A (A$)\n");
    printf(" -h\t\t(print help and exit)\n");
-   printf(" -v\t\t(print version and exit)\n");
+   printf(" -v\t\t(print version and exit)\n\n");
+   printf(" z80.bin\tblock of machine code file\n");
+   printf(" dest.tap\tTAP file with the BASIC loader w/ machine code embedded\n");
    printf("\n");
    exit(1);
 }
