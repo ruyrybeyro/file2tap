@@ -4,7 +4,7 @@
 //
 //                 Rui Ribeiro/2020-2021
 //  
-//            Example       ./file2loader joy joy.tap -n JOY -x 32768 
+//            Example       ./file2loader -n JOY -x 32768 joy joy.tap
 //
 //
 
