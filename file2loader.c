@@ -19,6 +19,7 @@
 
 void usage(char * s)
 {
+   printf("file2loader %s\n", VERSION);
    printf(" Usage:\n%s [-n TAPE_BLOCK_NAME] [-x address_of_routine] [-s SP] [-p n] [-a n][-V A] z80.bin dest.tap\n\n", s);
    printf(" -n NAME\tname of the TAP BASIC section seen by LOAD \"\"\n");
    printf(" -x addr\tdecimal address of code recolocation/execution\n");
